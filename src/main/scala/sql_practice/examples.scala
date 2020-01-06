@@ -35,4 +35,32 @@ object examples {
 
 
   }
+
+  def exec2(): Unit ={
+    val spark = SessionBuilder.buildSession()
+    import spark.implicits._
+
+    val demography = spark.read
+      .option("multiline", false)
+      .option("mode", "PERMISSIVE")
+      .json("data/input/demographie_par_commune.json")
+
+    println("How many inhabitants has France ?")
+    demography.agg(sum($"population")).show
+
+    println("What are the top highly populated departments in France ? (Just a code name)")
+    demography.groupBy($"departement").agg(sum($"population")).orderBy($"sum(population)".desc).show
+
+    val departement = spark.read
+      .csv("data/input/departements.txt")
+      .select($"_c0".as("Nom"), $"_c1".as("Code"))
+
+    println("What are the top highly populated departments in France ?  (use Join to dispaly the names)")
+    demography.groupBy($"departement").agg(sum($"population")).join(departement, $"departement"===$"Code", "inner").orderBy($"sum(population)".desc).select($"Nom", $"departement", $"sum(population)").show
+
+
+
+
+
+  }
 }
