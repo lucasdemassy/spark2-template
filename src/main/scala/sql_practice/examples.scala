@@ -89,7 +89,7 @@ object examples {
       (sample_08("Salary")-sample_07("Salary")).cast("int").as("growth"))
       .orderBy($"growth".desc).show
 
-    println("Job loss from 2007 to 2008 among $100k salaries in 2007")
+    println("Job evolution from 2007 to 2008 among $100k salaries in 2007")
     jointure.where(sample_07("Salary")>=100000).select($"Code",
       sample_07("Description"),
       sample_07("Salary").as("2007 salary"),
@@ -97,6 +97,48 @@ object examples {
       sample_08("total_emp").as("2008 employees"),
       (sample_08("total_emp")-sample_07("total_emp")).cast("int").as("Job evolution"))
       .orderBy($"Job evolution".asc).show(100, false)
+  }
+
+  def exec4(): Unit = {
+    val spark = SessionBuilder.buildSession()
+    import spark.implicits._
+
+    val toursDF = spark.read
+      .option("multiline", true)
+      .option("mode", "PERMISSIVE")
+      .json("data/input/tours.json")
+    toursDF.show
+
+    println("How many unique levels of difficulties ? " + toursDF.select($"tourDifficulty").distinct().count)
+    toursDF.select($"tourDifficulty").distinct().show
+
+    println("What is the min/avg/max of tour prices ?")
+    toursDF.select(min($"tourPrice"), avg($"tourPrice"), max($"tourPrice")).show
+
+    println("What is the min/avg/max of price of each level of difficulty ?")
+    toursDF.groupBy($"tourDifficulty").agg(min($"tourPrice"), avg($"tourPrice"), max($"tourPrice")).show
+
+    println("What is the min/avg/max of price and min/avg/max of duration for each level of difficulty ?")
+    toursDF.groupBy($"tourDifficulty").agg(min($"tourPrice"), avg($"tourPrice"), max($"tourPrice"), min($"tourLength"), avg($"tourLength"), max($"tourLength")).show
+
+    println("Top 10 'tourTags'")
+    toursDF.select(explode($"tourTags")).groupBy($"col").count().orderBy($"count".desc).show(10)
+
+    println("Relationship between the top 10 'tourTags' and 'tourDifficulty'")
+    toursDF
+      .select(explode($"tourTags"), $"tourDifficulty")
+      .groupBy($"col", $"tourDifficulty")
+      .count()
+      .orderBy($"count".desc)
+      .show(10)
+
+    println("What is the min/avg/max of price in 'tourTags' and 'tourDifficulty' relationship ? (sorted by average)")
+    toursDF
+      .select(explode($"tourTags"), $"tourDifficulty", $"tourPrice")
+      .groupBy($"col", $"tourDifficulty")
+      .agg(min($"tourPrice"), avg($"tourPrice"), max($"tourPrice"))
+      .orderBy($"avg(tourPrice)".desc)
+      .show
 
   }
 }
